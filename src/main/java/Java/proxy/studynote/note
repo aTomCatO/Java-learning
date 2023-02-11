@@ -1,0 +1,198 @@
+========================================================================================================================
+Cglib：
+CGLIB底层使用了ASM(一个短小精悍的字节码操作框架)来操作字节码生成新的类。
+除了CGLIB库外，脚本语言(如Groovy何BeanShell)也使用ASM生成字节码。
+ASM使用类似SAX的解析器来实现高性能。
+我们不鼓励直接使用ASM，因为它需要对Java字节码的格式足够的了解。
+
+通过下列步骤来生成目标类Target的代理类：
+1、创建Enhancer实例；
+2、通过setSuperclass方法来设置目标类；
+3、通过setCallback方法来设置拦截对象；
+4、create方法生成Target的代理类，并返回代理类的实例。
+
+Enhancer既能够代理普通的class，也能够代理接口。
+Enhancer创建一个被代理对象的子类并且拦截所有的方法调用(包括从Object中继承的toString和hashCode方法)。
+Enhancer不能够拦截final方法，例如Object.getClass()方法，这是由于Java final方法语义决定的。
+基于同样的道理，Enhancer也不能对final类进行代理操作。这也是Hibernate为什么不能持久化final class的原因。
+
+代理类生成的调用链：
+1、Enhancer : create()
+2、Enhancer : createHelper()
+3、AbstractClassGenerator : create(Object key)
+4、DefaultGeneratorStrategy : generate(ClassGenerator cg)
+5、Enhancer : generateClass(ClassVisitor v)
+最终Enhancer类generateClass(ClassVisitor v)方法生成代理类，
+至于生成代理类Class文件是在DefaultGeneratorStrategy类的generate(ClassGenerator cg)方法：
+*****************************************
+*  return transform(cw.toByteArray());  *
+*****************************************
+cw.toByteArray()调用的是DebuggingClassWriter类的toByteArray()方法：
+public byte[] toByteArray() {
+  return (byte[]) java.security.AccessController.doPrivileged(
+    new java.security.PrivilegedAction() {
+        public Object run() {
+            byte[] b = DebuggingClassWriter.super.toByteArray();
+            if (debugLocation != null) {
+                String dirs = className.replace('.', File.separatorChar);
+                try {
+                    new File(debugLocation + File.separatorChar + dirs).getParentFile().mkdirs();
+
+                    File file = new File(new File(debugLocation), dirs + ".class");
+                    OutputStream out = new BufferedOutputStream(new FileOutputStream(file));
+                    try {
+                        out.write(b);
+                    } finally {
+                        out.close();
+                    }
+                ......
+上面方法中可以看到当 debugLocation != null 时将Class字节数组 b 写到 debugLocation 目录下，
+而这里的debugLocation在该类静态代码块中初始化：
+public static final String DEBUG_LOCATION_PROPERTY = "cglib.debugLocation";
+static {
+   if (debugLocation != null) {
+       System.err.println("CGLIB debugging enabled, writing to '" + debugLocation + "'");
+       try {
+           Class clazz = Class.forName("org.springframework.asm.util.TraceClassVisitor");
+           traceCtor = clazz.getConstructor(ClassVisitor.class, PrintWriter.class);
+       } catch (Throwable t) {
+       }
+   }
+}
+因此我们可以设置参数cglib.debugLocation来控制代理类生成路径。
+
+在JDK动态代理中拦截对象是在实例化代理类时由构造函数传入的，在CGLIB中是调用Enhancer的firstInstance方法来生成代理类实例并设置拦截器的。
+firstInstance的调用轨迹为：
+1、Enhancer：firstInstance
+2、Enhancer：createUsingReflection
+3、Enhancer：setThreadCallbacks
+4、Enhancer：setCallbacksHelper
+5、被代理类
+
+在构建代理类的时候，如果拦截器的类型是MethodIntercept，
+就会创建针对MethodIntercept使用的方法的MethodProxy，
+在调用MethodIntercept的时候，会将MethodProxy传递过去。
+MethodProxy是在生成的代理类的静态代码块里面初始化的。（通过MethodProxy#create方法）。
+
+创建MethodProxy的时候会传递四个参数，
+被代理的类对象的class对象，代理类对象的class对象，MethodIntercepted起作用的方法的签名，这个方法对应在被代理类和代理类中的名字。
+通过这几个参数给MethodProxy的几个属性赋值，同时他们也有不同的语义。
+Cglib用Signature来表示方法的签名（方法的名字和方法的描述信息），对应MethodProxy的sig1（被代理类的方法签名）和sig2（代理类的方法签名）属性。
+
+此外，在MethodProxy还有一个FastClassInfo属性，Cglib里面在调用MethodProxy#invoke或者invokeSuper的时候，
+会针对sig1和sig2动态的生成两个FastClass的子类，在这子类里面会获取要实现的类型的所有的方法，利用这些方法做调用，
+在生成的FastClass的子类里面主要有两个方法,getIndex和invoke方法。
+在getIndex里面会利用方法的签名返回index，这些index对应的是该方法在invoke里面的调用下标。
+
+在invoke方法里面将，传递进来的对象强转为它获取方法类型的class对象，通过下标，做方法调用。
+
+简单的说就是，MethodProxy在调用的时候，会动态的生成两个继承于FastClass类，
+它里面有俩重要的方法，getIndex和invoke方法，在类里面会获取到要实现类的class的所有的方法，
+这些方法在invoke里面会组成从0开始的方法调用的下标。
+并且会将invoke方法传递进来的对象强转为要实现的类的类型，通过下标做匹配，做方法调用。
+在getIndex方法里面，通过传递进来的方法签名的hashcode，做匹配，返回index（这个index是对应的invoke方法里面的index）。
+
+CGLIB动态代理的基本原理：
+1、CGLIB动态代理底层通过ASM字节码操纵框架动态生成代理类及其相关类。
+2、CGLIB动态代理会动态生成3个Class，分别是代理类，代理类的FastClass类，目标类的FastClass类。
+3、CGLIB默认会代理Object类的5个方法(hashCode ，equals，clone，toString，finalize)
+                和目标类中非private(代理类会调用父类即目标类的方法，显然private方法不允许在子类调用)，
+                非final方法(代理类要重写代理方法，显然final方法不能重写)。
+4、代理类继承目标类，重写代理方法，并在代理方法中调用方法拦截器的intercept方法，
+   最终通过FastClass方式调用代理类中与代理方法相对应的方法(CGLIB代 理 方 法 名 代理方法名代理方法名x)，并在该方法中调用父类的最终方法。
+5、CGLIB通过FastClass机制加快方法调用速度，以弥补反射调用的不足；
+   如何通过代理类的代理方法高效率的访问到目标类的实际方法？
+   通过代理类代理方法的索引(代理方法描述的hashcode)直接定位到代理类中与代理方法相对应的方法，在这个方法中调用了父类及目标类的实际方法。
+6、FastClass类的生成延迟到用户调用代理类的代理方法时，并通过缓存的方式，保证每个类(就针对3个类生成)只生成一次。
+7、代理类Class在Enhancer.create()时生成，并通过 cglib.debugLocation= "生成路径" 或
+   System.setProperty(DebuggingClassWriter.DEBUG_LOCATION_PROPERTY, "生成路径");
+   控制3个Class文件的生成。
+========================================================================================================================
+JDK 动态代理和 Cglib 动态代理的区别：
+1，JDK代理使用的是反射机制生成一个实现代理接口的匿名类，在调用具体方法前调用InvokeHandler来处理。
+   CGLIB代理使用字节码处理框架asm，对代理对象类的class文件加载进来，通过修改字节码生成子类，
+        在子类中采用方法拦截的技术拦截所有父类方法的调用并顺势织入横切逻辑。
+2，JDK创建代理对象效率较高，执行效率较低；
+   CGLIB创建代理对象效率较低，执行效率高。
+3，JDK动态代理机制是委托机制，只能对实现接口的类生成代理，通过反射动态实现接口类；
+   CGLIB则使用的继承机制，针对类实现代理，被代理类和代理类是继承关系，所以代理类是可以赋值给被代理类的，因为是继承机制，不能代理final修饰的类。
+4，JDK代理是不需要依赖第三方的库，只要JDK环境就可以进行代理，需要满足以下要求：
+     1.实现InvocationHandler接口，重写invoke()
+     2.使用Proxy.newProxyInstance()产生代理对象
+     3.被代理的对象必须要实现接口
+   CGLib 必须依赖于CGLib的类库,需要满足以下要求：
+     1.实现MethodInterceptor接口，重写intercept()
+     2.使用Enhancer对象.create()产生代理对象
+
+JDK动态代理只提供接口的代理，不支持类的代理，核心InvocationHandler接口和Proxy类。
+InvocationHandler 通过invoke()方法反射来调用目标类中的代码，动态地将横切逻辑和业务编织在一起；
+接着，Proxy利用 InvocationHandler动态创建一个符合某一接口的的实例, 生成目标类的代理对象。
+如果代理类没有实现 InvocationHandler 接口，那么Spring AOP会选择使用CGLIB来动态代理目标类。
+
+CGLIB（Code Generation Library），是一个代码生成的类库，
+可以在运行时动态的生成指定类的一个子类对象，并覆盖其中特定方法并添加增强代码，从而实现AOP。
+CGLIB是通过继承的方式做的动态代理，因此如果某个类被标记为final，那么它是无法使用CGLIB做动态代理的。
+
+JDK和Cglib哪个效率高？
+1、cglib底层是ASM字节码生成框架，但是字节码技术生成代理类，在JDL1.6之前比使用java反射的效率要高
+2、在jdk6之后逐步对JDK动态代理进行了优化，在调用次数比较少时效率高于cglib代理效率
+3、只有在大量调用的时候cglib的效率高，但是在1.8的时候JDK的效率已高于cglib
+4、Cglib不能对声明final的方法进行代理，因为cglib是动态生成代理对象，final关键字修饰的类不可变只能被引用不能被修改
+
+Spring如何选择是用JDK还是cglib？
+1、如果目标对象实现了接口，默认情况下会采用 JDK 的动态代理实现 AOP
+2、如果目标对象没有实现接口，必须采用 CGLIB，Spring 会自动在 JDK 动态代理和 CGLIB 之间转换
+3、如果目标对象实现了接口，也可以强制使用 CGLIB 实现 AOP
+  （在spring配置中加入<aop:aspectj-autoproxy proxy-target-class=”true”/>）
+
+Cglib动态代理中的代理类没有默认继承的父类，所以Cglib对接口和类都可以实现代理。
+Jdk和Cglib中代理类对象调用被代理类方法的流程都是：
+通过代理类调用方法拦截器（Cglib中是MethodInterceptor，Proxy中是InvocationHandler），方法拦截器再调用被代理类方法。
+不同的是：Jdk中调用被代理类方法是通过反射，而Cglib中调用被代理类方法是通过事先建立好的索引，索引的建立和获取在FastClass中。
+========================================================================================================================
+FastClass：
+FastClass机制就是对一个类的方法建立索引，通过索引来直接调用相应的方法。
+实现逻辑是生成增强类实现invoke方法，invoke方法中，用switch语义将被增强类的所有方法调用枚举出来。
+通过使用FastClass.invoke方法，传入方法签名和被调用实例，从而达到不使用反射就能实现不确定方法的调用。
+
+FastClass生成调用链：
+1、MethodProxy : invokeSuper(Object obj, Object[] args)
+2、MethodProxy : init()
+3、MethodProxy : helper(CreateInfo ci, Class type)
+4、FastClass.Generator : create()
+而invokeSuper()方法是在代理类方法调用时才会调用，因此FastClass的生成也采用了类似 lazy-init 的方式提高性能。
+
+1.FastClass比反射快的原因：
+  通过方法前面或者标识符index，利用switch case直接利用对象去调用函数
+  而反射是java.lang.reflect.Method#invoke
+
+2.MethodProxy#invoke和MethodProxy#invokeSuper什么区别，即[c1,f1]与[c2,f2]的区别
+  [c1,f1]对应的是 父类的 class 和 FastClass
+  [c2,f2]对应的是 父类的 enhanceClass 和 enhanceFastClass
+
+3.MethodProxy#init创建 FastClass 时,每个method在第一次调用时，都会进行
+  net.sf.cglib.proxy.MethodProxy#init
+  net.sf.cglib.proxy.MethodProxy#helper
+  net.sf.cglib.reflect.FastClass.Generator#create
+  那么为什么对应的 FastClass 文件只生成了一次(不是一个method调用一次就生成一次)
+  并且一次就有整个类的信息，而不是只有这个method相关信息呢
+      第一点：同一个类的FastClass只生成了一次，是
+             net.sf.cglib.reflect.FastClass.Generator#create
+             net.sf.cglib.core.AbstractClassGenerator#create
+             里面用了缓存
+      第二点:一次就有整个类的信息，而不是只有这个method信息
+             net.sf.cglib.proxy.MethodProxy#create时就传入和class c1,c2
+             后来创建fastClass时
+             net.sf.cglib.proxy.MethodProxy#helper
+             调用了g.setType(type);
+             在fastClass生成时
+             net.sf.cglib.reflect.FastClass.Generator#generateClass
+             用到了这个之前设置好的Class type，也就直到类信息了
+             invokeSuper的逻辑
+
+4.把invokeSuper改成invoke会怎么样
+  结论:死循环，堆栈溢出
+
+5.methodProxy和fastClass结合使用
+  methodProxy用于生成方法代理的关系绑定(classA.methodA被classB.methodB代理)
+  fastClass用于完成方法代理的快速调用，通过签名拿到标识index，避免重复反射
