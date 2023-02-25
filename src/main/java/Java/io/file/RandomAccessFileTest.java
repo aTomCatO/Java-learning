@@ -1,9 +1,6 @@
-package Java.io;
-
-import org.junit.Test;
+package Java.io.file;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 
 /**
  * @author XYC

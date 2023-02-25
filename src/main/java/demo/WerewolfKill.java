@@ -1,8 +1,6 @@
-package study;
+package demo;
 
 import java.util.*;
-
-import Util.*;
 
 /**
  * @author XYC

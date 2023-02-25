@@ -1,19 +1,22 @@
-package Java.io;
+package Java.io.nio.buffer;
 
 import org.junit.Test;
+import org.slf4j.ILoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Scanner;
+
 
 /**
  * @author XYC
  */
 public class MappedByteBufferTest {
+
     /**
      * 将共享内存和磁盘文件建立联系的是文件通道类：FileChannel。
      * 该类的加入是JDK为了统一对外部设备（文件、网络接口等）的访问方法，并且加强了多线程对同一文件进行存取的安全性。
@@ -32,19 +35,16 @@ public class MappedByteBufferTest {
      * 2、position：文件映射时的起始位置。
      * 3、length：映射区的长度。长度单位为字节。长度单位为字节
      */
-    @Test
-    public static void test() {
-        try {
-            File file = new File("D:\\JavaWorld\\Demo\\Java\\src\\main\\java\\Java\\io\\Hello.txt");
-            long len = file.length();
-            byte[] bytes = new byte[(int) len];
+    Logger logger = LoggerFactory.getLogger(MappedByteBufferTest.class);
 
-            RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
+    @Test
+    public void test() {
+        File file = new File("D:\\JavaWorld\\Demo\\Java\\src\\main\\java\\Java\\io\\Hello.txt");
+        long len = file.length();
+        byte[] bytes = new byte[(int) len];
+        try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");) {
             MappedByteBuffer mappedByteBuffer =
                     randomAccessFile.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, len);
-
-            randomAccessFile.close();
-
             for (int i = 0; i < len; i++) {
                 byte b = mappedByteBuffer.get();
                 bytes[i] = b;
@@ -78,5 +78,4 @@ public class MappedByteBufferTest {
         long endTime = System.currentTimeMillis();
         System.out.println("Time(s): " + (endTime - startTime) / 1000f);
     }
-
 }

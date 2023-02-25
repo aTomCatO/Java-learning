@@ -13,9 +13,12 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.*;
 
-public class IO {
+public class IoTest {
+
+    /**
+     * 一、利用通道完成文件的复制(非直接缓冲区。效率低)
+     * */
     @Test
-    /**一、利用通道完成文件的复制(非直接缓冲区。效率低)*/
     public void test1() throws IOException {
         FileInputStream in = new FileInputStream("D:/JavaWorld/Demo/Java/src/main/java/Java/NIO/Hallo.txt");
         FileOutputStream out = new FileOutputStream("D:/JavaWorld/Demo/Java/src/main/java/Java/NIO/World.txt");

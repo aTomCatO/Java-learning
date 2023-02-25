@@ -14,9 +14,10 @@ public class MyThreadFactory implements ThreadFactory {
         this.factoryName = factoryName;
     }
 
+
     @Override
     public Thread newThread(Runnable task) {
-        String threadName = factoryName + " - " + threadID.getAndIncrement();
+        String threadName = factoryName + "-" + threadID.getAndIncrement();
         return new Thread(task, threadName);
     }
 }

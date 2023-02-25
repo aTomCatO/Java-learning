@@ -1,8 +1,9 @@
-package Java.io.channel;
+package Java.io.nio.channel;
 
 /**
  * @author XYC
  */
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.FileChannel;
@@ -21,15 +22,15 @@ public class FileChannelTransferTest {
         // 使用一个信号量确保 Server 比 Client 先启动
         Semaphore semaphore = new Semaphore(1);
         // 额外开一个线程运行
-        startServer(semaphore);
+        server(semaphore);
         // 运行在主线程
-        startClient(semaphore);
+        client(semaphore);
     }
 
     /**
      * 客户端代码
-     * */
-    static void startClient(Semaphore semaphore) throws InterruptedException, IOException {
+     */
+    static void client(Semaphore semaphore) throws InterruptedException, IOException {
         // 等待 server 释放资源
         semaphore.acquire();
         // 打开一个 Socket 通道，并连接到服务端
@@ -39,7 +40,7 @@ public class FileChannelTransferTest {
         semaphore.release();
         // 打开文件通道
         FileChannel fileChannel = FileChannel.open(Paths.get("D:\\JavaWorld\\Demo\\Java\\src\\main\\java\\Java\\io\\World.txt"),
-                StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE,                                                                          StandardOpenOption.CREATE);
+                StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
         // 将 socket 通道的数据转到文件通道
         fileChannel.transferFrom(socketChannel, 0, Long.MAX_VALUE);
         // 确保数据刷出到 I/O 设备
@@ -52,10 +53,10 @@ public class FileChannelTransferTest {
     /**
      * 服务端代码
      */
-    static void startServer(Semaphore semaphore) throws InterruptedException {
+    static void server(Semaphore semaphore) throws InterruptedException {
         semaphore.acquire();
-        new Thread(()->{
-            try{
+        new Thread(() -> {
+            try {
                 // 打开服务端通道
                 ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
                 // 绑定 8080 端口
@@ -65,18 +66,21 @@ public class FileChannelTransferTest {
                 // 等待客户端连接
                 SocketChannel clientChannel = serverSocketChannel.accept();
                 // 以只读的方式打开文件通道
-                FileChannel fileChannel = FileChannel.open(Paths.get("D:\\JavaWorld\\Demo\\Java\\src\\main\\java\\Java\\io\\Hello.txt"), StandardOpenOption.READ);
+                FileChannel fromChannel =
+                        FileChannel.open(
+                                Paths.get("D:\\JavaWorld\\Demo\\Java\\src\\main\\java\\Java\\io\\Hello.txt"),
+                                StandardOpenOption.READ);
 
                 // 循环调用 transferTo，确保数据传输完整
                 long transferred = 0;
-                while (transferred < fileChannel.size()){
-                    transferred += fileChannel.transferTo(transferred, fileChannel.size(), clientChannel);
+                while (transferred < fromChannel.size()) {
+                    transferred += fromChannel.transferTo(transferred, fromChannel.size(), clientChannel);
                 }
 
-                fileChannel.close();
+                fromChannel.close();
                 clientChannel.close();
                 serverSocketChannel.close();
-            }catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }).start();
