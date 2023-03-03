@@ -89,6 +89,10 @@
         <level value="info"/>
         <appender-ref ref="stdout"/>
     </logger>
+    <logger name="io.netty.handler.logging.LoggingHandler" additivity="false">
+        <level value="info"/>
+        <appender-ref ref="stdout"/>
+    </logger>
     <root level="info">
         <appender-ref ref="stdout"/>
         <appender-ref ref="infoFile"/>

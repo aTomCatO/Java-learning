@@ -12,8 +12,6 @@ import java.nio.file.StandardOpenOption;
  * @author XYC
  */
 public class FileChannelTest {
-
-
     /**
      * 用 FileChannel 进行文件复制
      * 先分别创建了两个文件的输入输出流，
