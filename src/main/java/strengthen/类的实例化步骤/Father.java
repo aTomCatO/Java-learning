@@ -1,4 +1,4 @@
-package 面试题.类的实例化步骤;
+package strengthen.类的实例化步骤;
 
 /**
  * @author XYC

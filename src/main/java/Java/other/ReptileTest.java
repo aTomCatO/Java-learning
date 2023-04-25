@@ -27,10 +27,10 @@ public class ReptileTest {
         Document document = Jsoup.parse(new URL(url), 30000);
         System.out.println(document.text());
         //获取文档中所有的p元素(标签)
-//        Elements elements = document.getElementsByTag("properties");
-//        //遍历所有的p元素,获取每个p元素的文本
-//        for (Element element : elements) {
-//            System.out.println(element.text());
-//        }
+        Elements elements = document.getElementsByTag("properties");
+        //遍历所有的p元素,获取每个p元素的文本
+        for (Element element : elements) {
+            System.out.println(element.text());
+        }
     }
 }

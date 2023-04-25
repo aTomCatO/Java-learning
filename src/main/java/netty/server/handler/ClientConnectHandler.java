@@ -37,12 +37,11 @@ public class ClientConnectHandler extends ChannelDuplexHandler {
     @Override
     public void channelRead(ChannelHandlerContext context, Object msg) throws Exception {
         Channel channel = context.channel();
-        Map<String, Object> msgMap = (Map<String, Object>) msg;
+        Map<String, String> msgMap = (Map<String, String>) msg;
         // 判断该客户端有无连接记录
-        Object sessionId = msgMap.get("sessionId");
-        String id;
-        if (sessionId != null && StringUtils.hasText((id = sessionId.toString()))) {
-            Session session = server.getSession(id);
+        String sessionId = msgMap.get("sessionId");
+        if (StringUtils.hasText(sessionId)) {
+            Session session = server.getSession(sessionId);
             if (session != null) {
                 // 判断channel是否活跃
                 Channel sessionChannel = session.getChannel();
@@ -62,7 +61,7 @@ public class ClientConnectHandler extends ChannelDuplexHandler {
                         return;
                     } else {
                         logger.info("session记录认证失败 -- 移除 session");
-                        server.removeSession(id);
+                        server.removeSession(sessionId);
                     }
                 }
             }
@@ -70,12 +69,12 @@ public class ClientConnectHandler extends ChannelDuplexHandler {
         // 不存在session记录 以及 session记录认证失败 的情况下执行
         context.fireChannelActive();
         logger.info("不存在session记录 -- 设置 session");
-        id = UUID.randomUUID().toString();
+        sessionId = UUID.randomUUID().toString();
         Session session = new Session(channel);
         session.setAttribute("lastConnectTime", dateFormat.format(new Date()));
-        server.setSession(id, session);
+        server.setSession(sessionId, session);
         HashMap<String, Object> map = new HashMap<>();
-        map.put("sessionId", id);
+        map.put("sessionId", sessionId);
         map.put("msg", "hello client");
         channel.writeAndFlush(map);
     }

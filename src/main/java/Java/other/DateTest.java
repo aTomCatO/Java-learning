@@ -15,56 +15,41 @@ import java.util.Locale;
  * @author XYC
  */
 public class DateTest {
+    /**
+     * yyyy年 MM月 dd日
+     * hh（12小时制） HH（24小时制）
+     * mm分 ss秒 SSS毫米
+     */
     @Test
-    public void date() {
+    public void dateFormat() {
         Date date = new Date();
-        //2021-12-23
         System.out.println("1  " + DateFormat.getDateInstance().format(date));
-
-        //2021年12月23日 星期四
         System.out.println("2  " + DateFormat.getDateInstance(DateFormat.FULL).format(date));
-
-        //2021-12-23  13:34:09
         DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd  HH:mm:ss");
-        System.out.println("3.1  " + dateFormat.format(date));
-        dateFormat = new SimpleDateFormat("HHmmssSSS");
-        //134354666
-        System.out.println("3.2  " + dateFormat.format(date));
+        System.out.println("3  " + dateFormat.format(date));
 
-        //2021-12-23  01:34:09
-        System.out.println("4  " + new SimpleDateFormat("yyyy-MM-dd  hh:mm:ss").format(date));
-        /**
-         yyyy表示年
-         MM表示月
-         dd表示天
-         hh表示用12小时制
-         HH表示用24小时制
-         mm表示分
-         ss表示秒
-         SSS表示毫米
-         */
+        System.out.println("4  " + dateFormat.format(new Date(System.currentTimeMillis() + 30 * 60 * 1000)));
     }
 
     @Test
     public void localDataTime() {
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime thisWeek = now.withHour(18).withMinute(0).withSecond(0).withNano(0).with(DayOfWeek.THURSDAY);
+        LocalDateTime thisWeek = now
+                .withHour(18)
+                .withMinute(0)
+                .withSecond(0)
+                .withNano(0)
+                .with(DayOfWeek.THURSDAY);
+
         LocalDateTime nextWeek = thisWeek.plusWeeks(1);
         System.out.println("当前日期: " + now);
         System.out.println("本周四: " + thisWeek);
         System.out.println("下周四: " + nextWeek);
-
-        System.out.println("当前距离下周四还有(天): " + Duration.between(now, nextWeek).toDays());
-        /**
-         * 当前日期: 2022-03-20T19:47:17.721
-         * 本周四: 2022-03-17T18:00
-         * 下周四: 2022-03-24T18:00
-         * 当前距离下周四还有(天): 3
-         */
+        System.out.println("当前距离下周四还有 " + Duration.between(now, nextWeek).toDays() + " 天");
     }
 
     @Test
-    public void localeTest() {
+    public void locale() {
         Locale usLocale = new Locale("en", "US");
         Locale zhLocale = new Locale("zh", "CN");
 

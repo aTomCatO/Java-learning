@@ -40,13 +40,12 @@ public class ConnectHandler extends ChannelDuplexHandler {
     @Override
     public void channelRead(ChannelHandlerContext context, Object msg) throws Exception {
         // 如果服务端写回sessionId，需将其处理
-        Map<String, Object> msgMap = (Map<String, Object>) msg;
-        Object sessionId = msgMap.get("sessionId");
+        Map<String, String> msgMap = (Map<String, String>) msg;
+        String sessionId = msgMap.get("sessionId");
         if (sessionId != null) {
-            String id = sessionId.toString();
-            client.setMessage("sessionId", id);
+            client.setMessage("sessionId", sessionId);
             FileChannel fileChannel = FileChannel.open(Paths.get("D:\\JavaWorld\\Demo\\Java\\src\\main\\resources\\sessionId.txt"), StandardOpenOption.WRITE);
-            fileChannel.truncate(0).write(ByteBuffer.wrap(id.getBytes(StandardCharsets.UTF_8)));
+            fileChannel.truncate(0).write(ByteBuffer.wrap(sessionId.getBytes(StandardCharsets.UTF_8)));
             fileChannel.close();
             client.removeMessage("lastConnectTime");
         }
@@ -110,7 +109,7 @@ public class ConnectHandler extends ChannelDuplexHandler {
     public void userEventTriggered(ChannelHandlerContext context, Object event) throws Exception {
         IdleStateEvent idleStateEvent = (IdleStateEvent) event;
         if (idleStateEvent.state() == IdleState.WRITER_IDLE) {
-            client.setMessage("msgContent", "客户端心跳机制触发").sendMessage();
+            context.channel().writeAndFlush("客户端心跳机制触发");
         }
     }
 }

@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSON;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Data;
 
 import java.io.File;
 import java.util.*;
@@ -11,17 +12,17 @@ import java.util.*;
 /**
  * jackson的使用
  * 🧭Java转换JSON格式的字符串:
- *        1,writeValue(参数1,obj)
- *          参数1:
- *              File:将obj对象转换为JSON字符串,并保存到指定得到文件中
- *              Write:将obj对象转换为JSON字符串,并将JSON数据填充到字符输出流中
- *              OutputStream:将obj对象转换为JSON字符串,并将JSON数据填充到字节输出流中
- *        2,writeValueAsString(ojb):将对象转为JSON字符串.
+ * 1,writeValue(参数1,obj)
+ * 参数1:
+ * File:将obj对象转换为JSON字符串,并保存到指定得到文件中
+ * Write:将obj对象转换为JSON字符串,并将JSON数据填充到字符输出流中
+ * OutputStream:将obj对象转换为JSON字符串,并将JSON数据填充到字节输出流中
+ * 2,writeValueAsString(ojb):将对象转为JSON字符串.
  * 🧭JSON格式字符串转换为Java对象:
- *          readValue(json,obj)
+ * readValue(json,obj)
  * 🧭注解:
- *          1,@JsonIgnore标注的属性不会序列化为JSON字符串
- *          2,@JsonFormat标注的属性其值会进行格式化(标注在时间类上)
+ * 1,@JsonIgnore标注的属性不会序列化为JSON字符串
+ * 2,@JsonFormat标注的属性其值会进行格式化(标注在时间类上)
  **/
 
 /**
@@ -38,7 +39,6 @@ public class Test {
     @org.junit.Test
     public void Object() throws JsonProcessingException {
         Book book = new Book("Java程序设计", 66, new Date());
-
         System.out.println("\n使用jackson:");
         String javaStr = objectMapper.writeValueAsString(book);
         System.out.println(javaStr);
@@ -115,5 +115,14 @@ public class Test {
     public void outDocument() throws Exception {
         Book girlFriend = new Book("C语言程序设计", 19, new Date());
         objectMapper.writeValue(new File("D:/JavaWorld/JSON.txt"), girlFriend);
+    }
+
+    @org.junit.Test
+    public void main() throws JsonProcessingException {
+        HashMap<String, String> map1 = new HashMap<>();
+        map1.put("1", "2");
+        map1.put("2", "2");
+
+        System.out.println(objectMapper.writeValueAsString(map1));
     }
 }

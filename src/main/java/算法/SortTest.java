@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -254,6 +255,7 @@ public class SortTest {
         }
         return integers;
     }
+
     public Map<Integer, Integer> location(int start, int end) {
         Map<Integer, Integer> map = new HashMap<>(10);
         Integer elementStart = location[start];

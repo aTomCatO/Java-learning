@@ -25,13 +25,13 @@ public class MessageHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelRead(ChannelHandlerContext context, Object msg) throws Exception {
-        Map<String, Object> msgMap;
+        Map<String, String> msgMap;
         try {
-            msgMap = json.readValue(msg.toString(), new TypeReference<Map<String, Object>>() {
+            msgMap = json.readValue(msg.toString(), new TypeReference<Map<String, String>>() {
             });
         } catch (JsonProcessingException e) {
             msgMap = new HashMap<>();
-            msgMap.put("msgContent", msg);
+            msgMap.put("msgContent", msg.toString());
         }
         logger.info("read msg => {}", msgMap);
         super.channelRead(context, msgMap);
